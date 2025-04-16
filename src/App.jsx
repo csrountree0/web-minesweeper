@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 
 const GRID_SIZE = 8;
 let remaining =GRID_SIZE*GRID_SIZE;
+let mines = 0;
 
 function App() {
     const [grid, setGrid] = useState(
@@ -15,8 +16,9 @@ function App() {
     const [gameOver, setGameOver] = useState(false);
     const [gameStarted, setGameStarted] = useState(false);
     const [lastClicked, setLastClicked] = useState(null);
+    const [win, setWin] = useState(false);
 
-    function generateGrid(cx, cy) {
+    function generateGrid(cx, cy, f=false) {
         const newGrid = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill().map(() => ({
             mine: false,
             revealed: false,
@@ -27,12 +29,14 @@ function App() {
         for(let i = 0; i < GRID_SIZE; i++) {
             for(let j = 0; j < GRID_SIZE; j++) {
                 if(i === cx && j === cy) continue;
-                newGrid[i][j].mine = Math.random() < 0.2;
+                newGrid[i][j].mine = Math.random() < 0.1;
                 if(newGrid[i][j].mine){
                     remaining--
                 }
             }
         }
+        mines = GRID_SIZE*GRID_SIZE-remaining;
+
         
 
         for(let i = 0; i < GRID_SIZE; i++) {
@@ -41,9 +45,14 @@ function App() {
             }
         }
 
+        if(f){
+            newGrid[cx][cy].flagged = true;
+        }
         setGrid(newGrid);
         setGameStarted(true);
-        setLastClicked([cx, cy]);
+        if(!f) {
+            setLastClicked([cx, cy]);
+        }
         remaining--;
     }
 
@@ -103,21 +112,41 @@ function App() {
         }
 
         if(!gameStarted) {
-            generateGrid(cx, cy);
+            if(flagged){
+                generateGrid(cx, cy,true);
+
+            }
+            else{
+                generateGrid(cx, cy);
+            }
             return;
         }
-        console.log(remaining)
         if(grid[cx][cy].revealed || gameOver) return;
 
         const newGrid = grid.map(row => row.map(cell => ({...cell})));
         if(flagged){
-            newGrid[cx][cy].flagged = true;
+            if(newGrid[cx][cy].flagged){
+                newGrid[cx][cy].flagged = false;
+                mines++
+            }
+            else{
+                newGrid[cx][cy].flagged = true;
+                mines--
+            }
 
         }
         else{
-            newGrid[cx][cy].revealed = true;
-            remaining--
-            setLastClicked([cx, cy]);
+            if(!newGrid[cx][cy].flagged){
+                newGrid[cx][cy].revealed = true;
+                remaining--
+                setLastClicked([cx, cy]);
+            }
+
+        }
+
+        if(remaining === 0){
+            console.log("win")
+            setWin(true);
         }
         setGrid(newGrid);
 
@@ -126,9 +155,11 @@ function App() {
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-900">
             <div className="flex flex-col items-center">
-                <h1 className="text-4xl font-bold mb-6 text-white animate-fade-in cursor-default">Minesweeper</h1>
-                <div className="bg-gray-800 p-4 rounded-lg animate-fade-in-delayed">
-                    <div className="grid grid-cols-8 gap-0.5">
+                <h1 className="text-4xl font-bold text-white animate-fade-in cursor-default">Minesweeper</h1>
+                <div className="text-1lg mt-4 font-bold  text-red-500 animate-fade-in cursor-default">💣s: {mines}</div>
+                {win ? <div className="text-1lg text-green-500 mt-4"> You Win! </div>:null}
+                <div className="bg-gray-800 p-4 mt-2 rounded-lg animate-fade-in-delayed">
+                    <div className={`grid grid-cols-${GRID_SIZE} gap-0.5`}>
                         {grid.map((row, i) =>
                             row.map((cell, j) => (
                                 <div
@@ -169,9 +200,8 @@ function App() {
                                             {cell.adjacentMines}
                                         </span>
                                     )}
-                                    {cell.revealed && cell.mine ? '💣':''}
-                                    {!cell.revealed && cell.flagged  ? '🚩':''}
-
+                                    {cell.revealed && cell.mine && '💣'}
+                                    {!cell.revealed && cell.flagged  && '🚩'}
                                 </div>
                             ))
                         )}
@@ -184,6 +214,8 @@ function App() {
                         setGameStarted(false);
                         setGameOver(false);
                         setLastClicked(null);
+                        setWin(false)
+                        mines = 0;
                         setGrid(Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill().map(() => ({
                             mine: false,
                             revealed: false,
