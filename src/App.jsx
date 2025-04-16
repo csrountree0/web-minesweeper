@@ -1,13 +1,15 @@
 import { useState, useEffect } from "react";
 
 const GRID_SIZE = 8;
+let remaining =GRID_SIZE*GRID_SIZE;
 
 function App() {
     const [grid, setGrid] = useState(
         Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill().map(() => ({
             mine: false,
             revealed: false,
-            adjacentMines: 0
+            adjacentMines: 0,
+            flagged: false
         })))
     );
     const [gameOver, setGameOver] = useState(false);
@@ -26,6 +28,9 @@ function App() {
             for(let j = 0; j < GRID_SIZE; j++) {
                 if(i === cx && j === cy) continue;
                 newGrid[i][j].mine = Math.random() < 0.2;
+                if(newGrid[i][j].mine){
+                    remaining--
+                }
             }
         }
         
@@ -39,6 +44,7 @@ function App() {
         setGrid(newGrid);
         setGameStarted(true);
         setLastClicked([cx, cy]);
+        remaining--;
     }
 
     function calculateAdjacentMines(x, y, currentGrid) {
@@ -76,7 +82,7 @@ function App() {
                         
                         if(!newGrid[i][j].revealed && !newGrid[i][j].mine) {
                             newGrid[i][j].revealed = true;
-                            
+                            remaining--
                             if(newGrid[i][j].adjacentMines === 0) {
                                 cellsToCheck.push([i, j]);
                             }
@@ -89,18 +95,32 @@ function App() {
         setGrid(newGrid);
     }, [lastClicked]);
 
-    function checkCell(cx, cy) {
+    function checkCell(cx, cy, flagged=false) {
+
+
+        if (remaining === 0) {
+            console.log("win")
+        }
+
         if(!gameStarted) {
             generateGrid(cx, cy);
             return;
         }
-
+        console.log(remaining)
         if(grid[cx][cy].revealed || gameOver) return;
 
         const newGrid = grid.map(row => row.map(cell => ({...cell})));
-        newGrid[cx][cy].revealed = true;
+        if(flagged){
+            newGrid[cx][cy].flagged = true;
+
+        }
+        else{
+            newGrid[cx][cy].revealed = true;
+            remaining--
+            setLastClicked([cx, cy]);
+        }
         setGrid(newGrid);
-        setLastClicked([cx, cy]);
+
     }
 
     return (
@@ -113,20 +133,45 @@ function App() {
                             row.map((cell, j) => (
                                 <div
                                     key={`${i}-${j}`}
-                                    className={`w-10 h-10 border border-gray-600 rounded cursor-pointer flex items-center justify-center
+                                    className={`w-10 h-10 border border-gray-600 rounded flex items-center justify-center
                                         ${cell.revealed 
                                             ? cell.mine 
                                                 ? 'bg-red-500' 
-                                                : 'text-white' 
-                                            : 'bg-gray-300 hover:bg-gray-400'}`}
+                                            : cell.adjacentMines === 1 
+                                                ? 'text-blue-300'
+                                                    : cell.adjacentMines === 2
+                                                    ? 'text-green-500' 
+                                                    : cell.adjacentMines === 3
+                                                    ? 'text-red-500'
+                                                    : cell.adjacentMines === 4
+                                                    ? 'text-purple-500' 
+                                                            : cell.adjacentMines === 5
+                                                    ? 'text-red-800'
+                                                                : cell.adjacentMines === 6
+                                                    ? 'text-teal-500' 
+                                                                    : cell.adjacentMines === 7
+                                                    ? 'text-white'
+                                                                        :'text-gray-400'
+                                                                
+                                            : 'bg-gray-300 hover:bg-gray-400 cursor-pointer'}
+                                            
+                                            ${cell.revealed ? 'cursor-default animate-fade-out' : ''}
+                                            `}
+
+
                                     onClick={() => checkCell(i, j)}
+                                    onContextMenu={(event) => {
+                                        event.preventDefault();
+                                        checkCell(i, j,true);}}
                                 >
                                     {cell.revealed && !cell.mine && cell.adjacentMines > 0 && (
                                         <span className="text-lg font-bold">
                                             {cell.adjacentMines}
                                         </span>
                                     )}
-                                    {cell.revealed && cell.mine && '💣'}
+                                    {cell.revealed && cell.mine ? '💣':''}
+                                    {!cell.revealed && cell.flagged  ? '🚩':''}
+
                                 </div>
                             ))
                         )}
@@ -135,6 +180,7 @@ function App() {
                 <button 
                     className="animate-fade-in-delayed-d mt-6 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 cursor-pointer" 
                     onClick={() => {
+                        remaining = GRID_SIZE * GRID_SIZE;
                         setGameStarted(false);
                         setGameOver(false);
                         setLastClicked(null);

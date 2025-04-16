@@ -25,3 +25,18 @@
     animation: fadeIn 0.8s ease-out 1.2s forwards;
     opacity: 0;
 }
+
+
+@keyframes fadeOut {
+    from {
+        scale: 1.2;
+        transform: translateY(0);
+    }
+    to{
+        scale: 1;
+    }
+}
+
+.animate-fade-out {
+    animation: fadeOut 0.8s;
+}
